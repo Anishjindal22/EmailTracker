@@ -7,7 +7,7 @@ const generateTrackingId = async (emailData) =>{
             headers: {
                 "Content-Type": "application/json"
             },
-            body:JSON.stringify(emailData);
+            body:JSON.stringify(emailData)
         });
         if(!response.ok){
             throw new Error =("Failed to generate tracking id");

@@ -1,79 +1,62 @@
-console.log("MailTracker Started");
+// contentScript.js
+console.log("🚀 MailTracker Started");
 
-const observer = new MutationObserver((mutations) => {
+const processedComposeWindows = new WeakSet();
 
-    for (const mutation of mutations) {
+const isComposeWindow = (node) => {
+    if (!(node instanceof HTMLElement)) return false;
 
-        for (const node of mutation.addedNodes) {
+    const label = (node.getAttribute("aria-label") || "").toLowerCase();
 
-            if (!(node instanceof HTMLElement)) continue;
+    return (
+        node.matches('[role="region"][aria-label*="New Message"]') ||
+        node.matches('[role="dialog"]') ||
+        label.includes("compose") ||
+        label.includes("new message")
+    );
+};
 
-            const composeWindow = node.matches(
-                '[role="region"][aria-label="New Message"]'
-            )
-                ? node
-                : node.querySelector(
-                    '[role="region"][aria-label="New Message"]'
-                );
+const tryAttachButton = (composeWindow, tries = 0) => {
+    if (processedComposeWindows.has(composeWindow)) return;
 
-            if (!composeWindow) continue;
-
-            console.log("Compose Window Opened");
-
-            const recipientField = composeWindow.querySelector(
-                'input[aria-label="To recipients"]'
-            );
-
-            const subjectField = composeWindow.querySelector(
-                'input[name="subjectbox"]'
-            );
-
-            const bodyField = composeWindow.querySelector(
-                '[contenteditable="true"][role="textbox"]'
-            );
-
-            console.log({
-                recipientField,
-                subjectField,
-                bodyField
-            });
-
-            const printEmailDetails = () => {
-
-                console.clear();
-
-                console.log("========== EMAIL ==========");
-
-                console.log("Recipient :", recipientField?.value);
-
-                console.log("Subject   :", subjectField?.value);
-
-                console.log("Body HTML :");
-
-                console.log(bodyField?.innerHTML);
-
-                console.log("===========================");
-
-            };
-
-            recipientField?.addEventListener("input", printEmailDetails);
-
-            subjectField?.addEventListener("input", printEmailDetails);
-
-            bodyField?.addEventListener("input", printEmailDetails);
-
-            printEmailDetails();
-
+    if (typeof window.Compose?.addTrackButton !== "function") {
+        if (tries < 20) {
+            setTimeout(() => tryAttachButton(composeWindow, tries + 1), 200);
         }
-
+        return;
     }
 
+    const added = window.Compose.addTrackButton(composeWindow);
+
+    if (added) {
+        processedComposeWindows.add(composeWindow);
+    } else if (tries < 20) {
+        setTimeout(() => tryAttachButton(composeWindow, tries + 1), 200);
+    }
+};
+
+const handleComposeWindow = (composeWindow) => {
+    console.log("✅ Compose Window Found");
+    tryAttachButton(composeWindow);
+};
+
+const scanForComposeWindows = () => {
+    document
+        .querySelectorAll('[role="region"], [role="dialog"]')
+        .forEach((node) => {
+            if (isComposeWindow(node)) {
+                handleComposeWindow(node);
+            }
+        });
+};
+
+const observer = new MutationObserver(() => {
+    scanForComposeWindows();
 });
 
 observer.observe(document.body, {
-
     childList: true,
-
     subtree: true
-
 });
+
+scanForComposeWindows();
