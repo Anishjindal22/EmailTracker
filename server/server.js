@@ -1,10 +1,12 @@
 const express = require('express');
-const app = express();
+const cookieParser = require('cookie-parser');
 const port = process.env.PORT || 3000;
 const trackingRoutes = require('./routes/trackingRoutes');
 const generateTrackingIdRoutes = require('./routes/generateTrackingId');
 const authRoutes = require('./routes/authRoutes');
+const app = express();
 app.use(express.json()); 
+app.use(cookieParser());
 const connectDb = require('./config/database');
 try{
     connectDb();
